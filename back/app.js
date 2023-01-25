@@ -1,6 +1,8 @@
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
+const http = require("http");
+const fs = require("fs");
 const app = express();
 const PORT = 8282;
 
@@ -23,11 +25,12 @@ const ipfsClientFn = async () => {
     port: "5002",
     protocol: "http",
   });
-
+  ipfs.add;
   globSource = ipfsClent.globSource;
 })();
 
 app.use(cors({ origin: "http://localhost:3000" }));
+app.use(express.json());
 
 app.listen(PORT, () => console.log("back server start..."));
 
@@ -82,4 +85,20 @@ app.post("/", multer().array("files"), async (req, res) => {
 
   console.log(imgsData);
   res.send(imgsData);
+});
+
+app.post("/getFile", (req, res) => {
+  //
+  const { cidPath, fileOriginalName } = req.body;
+
+  const request = http.get(cidPath, (response) => {
+    //
+    const newFilePath = `./${fileOriginalName}`;
+    const newFile = fs.createWriteStream(newFilePath);
+    response.pipe(newFile);
+
+    fs.createReadStream(fileOriginalName).pipe(res);
+  });
+
+  // const request = http.get(cidPath, (response) => response.pipe(res));
 });

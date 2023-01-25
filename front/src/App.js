@@ -57,9 +57,11 @@ const ipfsFn = async (files, setImgs, setDocs) => {
     const imageTypes = ["image/jpeg", "image/gif", "image/png", "image/bmp"];
     const documentTypes = [
       "application/msword",
+      "application/haansofdocx",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
+      "application/haansofxlsx",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
       "application/pdf",
       "application/haansofthwp",
     ];
@@ -67,22 +69,28 @@ const ipfsFn = async (files, setImgs, setDocs) => {
     const isImage = imageTypes.some((type) => type === fileTypes[idx]);
     const isDocument = documentTypes.some((type) => type === fileTypes[idx]);
 
-    const path = "http://localhost:9090/ipfs/" + file.cid["/"];
+    const cidPath = "http://localhost:9090/ipfs/" + file.cid["/"];
 
     const fileOriginalName = filesData[idx].path;
     const extentionName = fileOriginalName.split(".")[fileOriginalName.split(".").length - 1];
 
     if (isImage) {
-      imgs.push({ path, extentionName });
+      imgs.push({ cidPath, fileOriginalName, extentionName });
     }
 
     if (isDocument) {
-      docs.push({ path, extentionName });
+      docs.push({ cidPath, fileOriginalName, extentionName });
     }
   });
 
   setImgs(imgs);
   setDocs(docs);
+};
+
+const downloadFileFn = async ({ cidPath, fileOriginalName, extentionName }) => {
+  //
+  const file = await axios.post("http://localhost:8282/getFile", { cidPath, fileOriginalName });
+  console.log(file.data);
 };
 
 function App() {
@@ -97,10 +105,10 @@ function App() {
       <button onClick={() => ipfsFn(file.current.files, setImgs, setDocs)}>ipfs</button>
       {/* ---------- */}
       {/* 이미지 파일 */}
-      {imgs && imgs.map((path, index) => <img src={path} key={index} alt="" />)}
+      {imgs && imgs.map((obj, index) => <img src={obj.cidPath} key={index} alt="" />)}
       {imgs &&
         imgs.map((obj, index) => (
-          <button onClick={() => window.open(obj.path)} key={index}>
+          <button onClick={() => downloadFileFn(obj)} key={index}>
             {`.${obj.extentionName} 파일 다운로드`}
           </button>
         ))}
@@ -108,7 +116,7 @@ function App() {
       {/* 문서 파일 */}
       {docs &&
         docs.map((obj, index) => (
-          <button onClick={() => window.open(obj.path)} key={index}>
+          <button onClick={() => window.open(obj.cidPath)} key={index}>
             {`.${obj.extentionName} 파일 다운로드`}
           </button>
         ))}
