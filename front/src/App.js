@@ -2,14 +2,8 @@ import "./App.css";
 import axios from "axios";
 import { useState, useRef } from "react";
 
-const ipfsFn = async (files, setImgs, setDocs) => {
+const createFormData = (files) => {
   //
-  if (files.length === 0) {
-    alert("파일 선택이 되지 않았습니다.");
-    return;
-  }
-
-  const fileTypes = new Array(0);
   const formData = new FormData();
 
   Array.from({ length: files.length }, (v, i) => i).forEach((i) => {
@@ -28,70 +22,109 @@ const ipfsFn = async (files, setImgs, setDocs) => {
 
     const file = new File([files[i]], fileName, options);
     formData.append("files", file);
-    fileTypes.push(type);
-  });
+  })
+
+  return formData;
+}
+
+const saveFilesFn = async (files) => {
+  //
+  if (files.length === 0) {
+    alert("파일 선택이 되지 않았습니다.");
+    return;
+  }
+
+  const formData = createFormData(files);
+  const saveFileResult = (await axios.post("http://localhost:8282/saveFiles", formData)).data;
+  alert(saveFileResult);
 
   // for (const iterator of formData.values()) {
   //   console.log(iterator);
   // }
+};
 
-  const filesData = (await axios.post("http://localhost:8282", formData)).data;
+const saveIpfsFn = async (setImgs, setDocs) => {
+  //
+  const saveIpfsResult = (await axios.post("http://localhost:8282/saveIpfs")).data;
 
-  if (typeof filesData === "string") {
+  if ((typeof saveIpfsResult) === "string") {
     //
-    alert(filesData);
+    alert(saveIpfsResult);
     return;
   }
-
   // 온전한 파일명인지 확인
-  console.log(filesData.map((data) => data.path));
-  console.log(fileTypes);
+  console.log(saveIpfsResult.map((data) => data.path));
 
   const imgs = new Array(0);
   const docs = new Array(0);
 
-  filesData.forEach((file, idx) => {
+  // 다양한 파일 타입별 처리 필요
+  // 요구사항 => jpg, jpeg, gif, png, bmp, doc, docx, xlsx, xls, pdf, hwp 첨부 가능
+  // const imageTypes = ["image/jpeg", "image/gif", "image/png", "image/bmp"];
+  // const documentTypes = [
+  //   "application/msword",
+  //   "application/haansoftdocx",
+  //   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  //   "application/haansoftxlsx",
+  //   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  //   "application/vnd.ms-excel",
+  //   "application/pdf",
+  //   "application/haansofthwp",
+  // ];
+
+  const imgExtensionNames = ["jpg", "jpeg", "gif", "png", "bmp"];
+  const documentExtensionNames = ["doc", "docx", "xlsx", "xls", "pdf", "hwp"];
+
+  saveIpfsResult.forEach((data) => {
     //
-    // 다양한 파일 타입별 처리 필요 => fileTypes[idx]
-    // 요구사항 => jpg, jpeg, gif, png, bmp, doc, docx, xlsx, xls, pdf, hwp 첨부 가능
-    const imageTypes = ["image/jpeg", "image/gif", "image/png", "image/bmp"];
-    const documentTypes = [
-      "application/msword",
-      "application/haansofdocx",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/haansofxlsx",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-      "application/pdf",
-      "application/haansofthwp",
-    ];
+    const cid = data.cid;
+    const fileOriginalName = data.path;
+    const extensionName = fileOriginalName.split(".")[fileOriginalName.split(".").length - 1];
 
-    const isImage = imageTypes.some((type) => type === fileTypes[idx]);
-    const isDocument = documentTypes.some((type) => type === fileTypes[idx]);
-
-    const cidPath = "http://localhost:9090/ipfs/" + file.cid["/"];
-
-    const fileOriginalName = filesData[idx].path;
-    const extentionName = fileOriginalName.split(".")[fileOriginalName.split(".").length - 1];
+    const isImage = imgExtensionNames.some((extension) => extension === extensionName);
+    const isDocument = documentExtensionNames.some((extension) => extension === extensionName);
 
     if (isImage) {
-      imgs.push({ cidPath, fileOriginalName, extentionName });
+      //
+      imgs.push({ cid, fileOriginalName, extensionName });
     }
 
-    if (isDocument) {
-      docs.push({ cidPath, fileOriginalName, extentionName });
+    else if (isDocument) {
+      //
+      docs.push({ cid, fileOriginalName, extensionName });
     }
-  });
+  })
 
   setImgs(imgs);
   setDocs(docs);
 };
 
-const downloadFileFn = async ({ cidPath, fileOriginalName, extentionName }) => {
+const downloadFileFn = async (fileOriginalName) => {
   //
-  const file = await axios.post("http://localhost:8282/getFile", { cidPath, fileOriginalName });
-  console.log(file.data);
+  const file = (await axios.post("http://localhost:8282/downloadFile", { fileOriginalName }, { responseType: "blob" })).data;
+
+  if (file.size === 0) {
+    //
+    alert("해당 백 경로에 파일이 없습니다.");
+    return;
+  }
+  
+  const blob = new Blob([file]);
+  const fileUrl = window.URL.createObjectURL(blob);
+  window.URL.revokeObjectURL(blob);
+
+  const aTag = document.createElement("a");
+  aTag.download = fileOriginalName;
+  aTag.href = fileUrl;
+  aTag.click();
+  aTag.remove();
 };
+
+const deleteBackFilesFn = async () => {
+  //
+  const resultMsg = (await axios.get("http://localhost:8282/deleteBackFiles")).data;
+  alert(resultMsg);
+}
 
 function App() {
   //
@@ -102,30 +135,26 @@ function App() {
   return (
     <div className="App">
       <input type="file" ref={file} multiple />
-      <button onClick={() => ipfsFn(file.current.files, setImgs, setDocs)}>ipfs</button>
+      <button onClick={() => saveFilesFn(file.current.files)}>saveFiles</button>
+      <button onClick={() => saveIpfsFn(setImgs, setDocs)}>saveIpfs</button>
+      <button onClick={deleteBackFilesFn}>deleteBackFiles</button>
       {/* ---------- */}
       {/* 이미지 파일 */}
-      {imgs && imgs.map((obj, index) => <img src={obj.cidPath} key={index} alt="" />)}
+      {imgs && imgs.map((obj, index) => <img src={"http://localhost:9090/ipfs/" + obj.cid} key={index} alt="" />)}
       {imgs &&
         imgs.map((obj, index) => (
-          <button onClick={() => downloadFileFn(obj)} key={index}>
-            {`.${obj.extentionName} 파일 다운로드`}
+          <button onClick={() => downloadFileFn(obj.fileOriginalName)} key={index}>
+            {`.${obj.extensionName} 파일 다운로드`}
           </button>
         ))}
       {/* -------- */}
       {/* 문서 파일 */}
       {docs &&
         docs.map((obj, index) => (
-          <button onClick={() => window.open(obj.cidPath)} key={index}>
-            {`.${obj.extentionName} 파일 다운로드`}
+          <button onClick={() => downloadFileFn(obj.fileOriginalName)} key={index}>
+            {`.${obj.extensionName} 파일 다운로드`}
           </button>
         ))}
-      {/* {docs &&
-        docs.map((path, index) => (
-          <a href={path} key={index}>
-            {"excel 파일" + (index + 1) + " 다운로드"}
-          </a>
-        ))} */}
     </div>
   );
 }
