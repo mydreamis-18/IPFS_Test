@@ -7,11 +7,36 @@ const fs = require("fs");
 const app = express();
 const PORT = 8282;
 
-let ipfs;
-let globSource;
+// Create a factory to spawn two test disposable controllers, get access to an IPFS api
+// print node ids and clean all the controllers from the factory.
+// (async () => {
+//   const Ctl = await import('ipfsd-ctl');
+
+//   const factory = Ctl.createFactory(
+//     {
+//       type: 'js',
+//       test: true,
+//       disposable: true,
+//       ipfsHttpModule: await import("ipfs-http-client"),
+//       ipfsModule: await import('ipfs') // only if you gonna spawn 'proc' controllers
+//     },
+//     { // overrides per type
+//       js: {
+//         ipfsBin:  (await import('ipfs')).path()
+//       },
+//     }
+//   )
+//   const ipfsd1 = await factory.spawn() // Spawns using options from `createFactory`
+
+//   console.log(await ipfsd1.api.id())
+
+//   // await factory.clean() // Clean all the controllers created by the factory calling `stop` on all of them.
+// })();
 
 // 비동기 방식인 ES 모듈을 커먼 JS로 가져오기
-const ipfsClientFn = async () => {
+let ipfs, globSource;
+
+const createIpfsClientFn = async () => {
   //
   const { create, globSource } = await import("ipfs-http-client");
   return { create, globSource };
@@ -19,15 +44,15 @@ const ipfsClientFn = async () => {
 
 (async () => {
   //
-  const ipfsClent = await ipfsClientFn();
+  const ipfsClient = await createIpfsClientFn();
 
-  ipfs = ipfsClent.create({
-    host: "localhost",
-    port: "5002",
+  ipfs = ipfsClient.create({
+    host: "127.0.0.1",
     protocol: "http",
+    port: "5002",
   });
-  ipfs.add;
-  globSource = ipfsClent.globSource;
+
+  globSource = ipfsClient.globSource;
 })();
 
 app.use(express.json());
@@ -35,12 +60,16 @@ app.use(cors({ origin: "http://localhost:3000" }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
+// ipfs에 저장할 파일 이름
+let fileNames = new Array(0);
+
 app.post("/saveFiles", multer().array("files"), async (req, res) => {
   //
   req.files.map((file) => {
     //
     const fileName = decodeURIComponent(file.originalname);
     fs.writeFileSync("reportFiles/" + fileName, file.buffer);
+    fileNames.push(fileName);
   });
 
   res.send("모든 첨부 파일 저장 완료!");
@@ -60,36 +89,33 @@ app.post("/saveIpfs", async (req, res) => {
   // 파일이 저장된 백 폴더 경로
   const backFolderPath = "./reportFiles";
 
-  // ipfs에 저장할 파일 이름
-  const fileNames = ["문서1.docx"];
-
-  try {
-    //
-    await Promise.all(
-      fileNames.map(async (name) => {
-        //
-        // ipfs 저장 { path, cid, size, mode }
-        for await (const iterator of ipfs.addAll(globSource(backFolderPath, name))) {
-          ipfsResult.push(iterator);
-
-          // 블록체인에 저장할 ipfs 경로
-          const path = "http://localhost:9090/ipfs/" + iterator.path;
-          ipfsPaths.push(path);
-        }
-
-        // 백에 저장된 파일의 버퍼 값
-        const buffer = fs.readFileSync(backFolderPath + "/" + name);
-        fileBuffers.push(buffer);
-      })
-      );
-    } catch (error) {
+  // try {
+  //
+  await Promise.all(
+    fileNames.map(async (name) => {
       //
-    res.send("ipfs daemon이 실행 중인지 혹은 해당 백 경로에 파일이 저장되어 있는지 확인해주세요.");
-    return;
-  }
+      // ipfs 저장 { path, cid, size, mode }
+      for await (const iterator of ipfs.addAll(globSource(backFolderPath, name))) {
+        ipfsResult.push(iterator);
+
+        // 블록체인에 저장할 ipfs 경로
+        const cidPath = "http://127.0.0.1:9090/ipfs/" + iterator.cid;
+        ipfsPaths.push(cidPath);
+      }
+
+      // 백에 저장된 파일의 버퍼 값
+      const buffer = fs.readFileSync(backFolderPath + "/" + name);
+      fileBuffers.push(buffer);
+    })
+  );
+  // } catch (error) {
+  //   //
+  // res.send("ipfs daemon이 실행 중인지 혹은 해당 백 경로에 파일이 저장되어 있는지 확인해주세요.");
+  // return;
+  // }
   console.log(ipfsPaths);
-  console.log(ipfsResult);
-  console.log(fileBuffers);
+  // console.log(ipfsResult);
+  // console.log(fileBuffers);
 
   res.send(ipfsResult);
 })

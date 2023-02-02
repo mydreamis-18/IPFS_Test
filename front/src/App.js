@@ -77,7 +77,8 @@ const saveIpfsFn = async (setImgs, setDocs) => {
 
   saveIpfsResult.forEach((data) => {
     //
-    const cid = data.cid;
+    // cid 객체
+    const cid = data.cid["/"];
     const fileOriginalName = data.path;
     const extensionName = fileOriginalName.split(".")[fileOriginalName.split(".").length - 1];
 
@@ -140,7 +141,7 @@ function App() {
       <button onClick={deleteBackFilesFn}>deleteBackFiles</button>
       {/* ---------- */}
       {/* 이미지 파일 */}
-      {imgs && imgs.map((obj, index) => <img src={"http://localhost:9090/ipfs/" + obj.cid} key={index} alt="" />)}
+      {imgs && imgs.map((obj, index) => <img src={"http://127.0.0.1:9090/ipfs/" + obj.cid} key={index} alt="" />)}
       {imgs &&
         imgs.map((obj, index) => (
           <button onClick={() => downloadFileFn(obj.fileOriginalName)} key={index}>
