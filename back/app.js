@@ -67,8 +67,7 @@ app.post("/saveFiles", multer().array("files"), async (req, res) => {
   //
   req.files.map((file) => {
     //
-    // 파일 이름에 [] 기호가 포함될 경우 ipfs에서 오류 발생
-    const fileName = decodeURIComponent(file.originalname).replaceAll("[", "").replaceAll("]", "");
+    const fileName = decodeURIComponent(file.originalname);
     fs.writeFileSync("reportFiles/" + fileName, file.buffer);
     fileNames.push(fileName);
   });
@@ -79,7 +78,7 @@ app.post("/saveFiles", multer().array("files"), async (req, res) => {
 app.post("/saveIpfs", async (req, res) => {
   //
   if (ipfs === undefined) {
-    res.send("ipfs 모듈 import 중이니 잠시 후 다시 시도해주세요.");
+    res.send("ipfs 모듈이 import 중이니 잠시 후 다시 시도해주세요.");
     return;
   }
 
@@ -95,8 +94,10 @@ app.post("/saveIpfs", async (req, res) => {
     await Promise.all(
       fileNames.map(async (name) => {
         //
-        // ipfs 저장 { path, cid, size, mode }
-        for await (const iterator of ipfs.addAll(globSource(backFolderPath, name))) {
+        // 두 번재 인자인 파일 이름에 [] 기호가 포함될 경우 오류가 발생하기 때문에 첫 번째 인자에 파일 이름까지 기재
+        for await (const iterator of ipfs.addAll(globSource(path.join(backFolderPath, name), "**/*"))) {
+          //
+          // ipfs 저장 { path, cid, size, mode }
           ipfsResult.push(iterator);
 
           // 블록체인에 저장할 ipfs 경로
@@ -111,7 +112,7 @@ app.post("/saveIpfs", async (req, res) => {
     );
   } catch (error) {
     //
-    res.send("ipfs daemon이 실행 중인지 혹은 해당 백 경로에 파일이 저장되어 있는지 확인해주세요.");
+    res.send("저장된 파일의 경로와 jsipfs daemon의 실행 여부를 다시 한 번 확인해주세요.");
     return;
   }
   console.log(ipfsPaths);
@@ -132,6 +133,7 @@ app.post("/downloadFile", (req, res) => {
   const isMissingFile = !(fs.existsSync(filePath));
   if (isMissingFile) {
     //
+    // blob 타입으로 전송
     res.send();
     return;
   }
@@ -162,8 +164,8 @@ app.get("/deleteBackFiles", (req, res) => {
   res.send("파일 삭제 완료!");
 })
 
-// ---------------------------------------------------------------------------
-// ----------------------------------------------------------------- 사용 안 함
+// ===========================================================================
+// =============================== 사용 안 함 =================================
 app.post("/saveIpfsWithMulter", multer().array("files"), async (req, res) => {
   //
   // console.log(ipfs === undefined)
@@ -213,8 +215,8 @@ app.post("/saveIpfsWithMulter", multer().array("files"), async (req, res) => {
   res.send(imgsData);
 });
 
-// ---------------------------------
-// ----------------------- 사용 안 함
+// =================================
+// =========== 사용 안 함 ===========
 app.post("/getFile", (req, res) => {
   //
   const { cidPath, fileOriginalName } = req.body;
