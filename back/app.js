@@ -67,7 +67,8 @@ app.post("/saveFiles", multer().array("files"), async (req, res) => {
   //
   req.files.map((file) => {
     //
-    const fileName = decodeURIComponent(file.originalname);
+    // 파일 이름에 [] 기호가 포함될 경우 ipfs에서 오류 발생
+    const fileName = decodeURIComponent(file.originalname).replaceAll("[", "").replaceAll("]", "");
     fs.writeFileSync("reportFiles/" + fileName, file.buffer);
     fileNames.push(fileName);
   });
@@ -89,33 +90,33 @@ app.post("/saveIpfs", async (req, res) => {
   // 파일이 저장된 백 폴더 경로
   const backFolderPath = "./reportFiles";
 
-  // try {
-  //
-  await Promise.all(
-    fileNames.map(async (name) => {
-      //
-      // ipfs 저장 { path, cid, size, mode }
-      for await (const iterator of ipfs.addAll(globSource(backFolderPath, name))) {
-        ipfsResult.push(iterator);
+  try {
+    //
+    await Promise.all(
+      fileNames.map(async (name) => {
+        //
+        // ipfs 저장 { path, cid, size, mode }
+        for await (const iterator of ipfs.addAll(globSource(backFolderPath, name))) {
+          ipfsResult.push(iterator);
 
-        // 블록체인에 저장할 ipfs 경로
-        const cidPath = "http://127.0.0.1:9090/ipfs/" + iterator.cid;
-        ipfsPaths.push(cidPath);
-      }
+          // 블록체인에 저장할 ipfs 경로
+          const cidPath = "http://127.0.0.1:9090/ipfs/" + iterator.cid;
+          ipfsPaths.push(cidPath);
+        }
 
-      // 백에 저장된 파일의 버퍼 값
-      const buffer = fs.readFileSync(backFolderPath + "/" + name);
-      fileBuffers.push(buffer);
-    })
-  );
-  // } catch (error) {
-  //   //
-  // res.send("ipfs daemon이 실행 중인지 혹은 해당 백 경로에 파일이 저장되어 있는지 확인해주세요.");
-  // return;
-  // }
+        // 백에 저장된 파일의 버퍼 값
+        const buffer = fs.readFileSync(backFolderPath + "/" + name);
+        fileBuffers.push(buffer);
+      })
+    );
+  } catch (error) {
+    //
+    res.send("ipfs daemon이 실행 중인지 혹은 해당 백 경로에 파일이 저장되어 있는지 확인해주세요.");
+    return;
+  }
   console.log(ipfsPaths);
-  // console.log(ipfsResult);
-  // console.log(fileBuffers);
+  console.log(ipfsResult);
+  console.log(fileBuffers);
 
   res.send(ipfsResult);
 })
