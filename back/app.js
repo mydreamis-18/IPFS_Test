@@ -1,5 +1,7 @@
+const BACK_FOLDER_NAME = "multerFiles";
 const express = require("express");
 const multer = require("multer");
+const IPFS_IP_PATH = "127.0.0.1";
 const cors = require("cors");
 const path = require("path");
 const http = require("http");
@@ -47,7 +49,7 @@ const createIpfsClientFn = async () => {
   const ipfsClient = await createIpfsClientFn();
 
   ipfs = ipfsClient.create({
-    host: "127.0.0.1",
+    host: IPFS_IP_PATH,
     protocol: "http",
     port: "5002",
   });
@@ -60,25 +62,34 @@ app.use(cors({ origin: "http://localhost:3000" }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
-// ipfs에 저장할 파일 이름
-let fileNames = new Array(0);
+// ipfs에 저장할 파일들의 백 경로 (테스트용 전역 변수)
+let filePaths = new Array(0);
+
+let fileOriginalNames = new Array(0);
 
 app.post("/saveFiles", multer().array("files"), async (req, res) => {
   //
   req.files.map((file) => {
     //
     const fileName = decodeURIComponent(file.originalname);
-    fs.writeFileSync("reportFiles/" + fileName, file.buffer);
-    fileNames.push(fileName);
+    const filePath = path.join(BACK_FOLDER_NAME, fileName);
+
+    fs.writeFileSync(filePath, file.buffer);
+
+    fileOriginalNames.push(fileName);
+    filePaths.push(filePath);
   });
 
-  res.send("모든 첨부 파일 저장 완료!");
+  res.send({ success: true, msg: "모든 첨부 파일 저장 완료!" });
 });
 
 app.post("/saveIpfs", async (req, res) => {
   //
   if (ipfs === undefined) {
-    res.send("ipfs 모듈이 import 중이니 잠시 후 다시 시도해주세요.");
+    res.send({
+      success: false,
+      msg: "ipfs 모듈이 import 중이니 잠시 후 다시 시도해주세요.",
+    });
     return;
   }
 
@@ -86,51 +97,83 @@ app.post("/saveIpfs", async (req, res) => {
   const ipfsResult = new Array(0);
   const fileBuffers = new Array(0);
 
-  // 파일이 저장된 백 폴더 경로
-  const backFolderPath = "./reportFiles";
-
   try {
     //
     await Promise.all(
-      fileNames.map(async (name) => {
+      filePaths.map(async (filePath) => {
         //
         // 두 번재 인자인 파일 이름에 [] 기호가 포함될 경우 오류가 발생하기 때문에 첫 번째 인자에 파일 이름까지 기재
-        for await (const iterator of ipfs.addAll(globSource(path.join(backFolderPath, name), "**/*"))) {
+        for await (const iterator of ipfs.addAll(
+          globSource(filePath, "**/*")
+        )) {
           //
-          // ipfs 저장 { path, cid, size, mode }
+          // { path, cid, size, mode }
           ipfsResult.push(iterator);
 
+          // ["code", "version", "multihash", "bytes", "/"];
+          // console.log(Object.keys(iterator.cid));
+
+          // true
+          // console.log(iterator.path === iterator.cid.toString());
+
           // 블록체인에 저장할 ipfs 경로
-          const cidPath = "http://127.0.0.1:9090/ipfs/" + iterator.cid;
+          const cidPath = `http://${IPFS_IP_PATH}:9090/ipfs/${iterator.cid}`;
           ipfsPaths.push(cidPath);
         }
 
         // 백에 저장된 파일의 버퍼 값
-        const buffer = fs.readFileSync(backFolderPath + "/" + name);
+        const buffer = fs.readFileSync(filePath);
         fileBuffers.push(buffer);
       })
     );
   } catch (error) {
     //
-    res.send("저장된 파일의 경로와 jsipfs daemon의 실행 여부를 다시 한 번 확인해주세요.");
+    res.send({
+      success: false,
+      msg: "저장된 파일의 경로와 jsipfs daemon의 실행 여부를 다시 한 번 확인해주세요.",
+    });
     return;
   }
-  console.log(ipfsPaths);
-  console.log(ipfsResult);
+
+  // 백 파일의 버퍼 값 (테스트용)
   console.log(fileBuffers);
 
-  res.send(ipfsResult);
-})
+  // 파일 다운로드 가능한 주소 (xlsx, docx 파일을 제외하고는 확장자 없이 다운로드됨)
+  console.log(ipfsPaths);
 
-app.post("/downloadFile", (req, res) => {
+  console.log(ipfsResult);
+
+  res.send({
+    success: true,
+    data: { fileOriginalNames, ipfsPaths, ipfsResult },
+  });
+});
+
+app.post("/downloadIpfs", async (req, res) => {
   //
-  const { fileOriginalName } = req.body;
+  const { fileOriginalName, cid } = req.body;
 
-  const backFolderPath = "./reportFiles";
-  const filePath = path.join(__dirname, backFolderPath, fileOriginalName);
+  let iwantbuffer;
+
+  for await (const chunk of ipfs.cat(cid)) {
+    console.info(chunk);
+    iwantbuffer = chunk;
+  }
+
+  // fs.writeFileSync(path.join("ipfsFiles", fileOriginalName), iwantbuffer);
+  
+  res.send(iwantbuffer);
+});
+
+app.post("/downloadBackFile", (req, res) => {
+  //
+  const { encodedFileName: fileName } = req.body;
+
+  const fileOriginalName = decodeURIComponent(fileName);
+  const filePath = path.join(__dirname, BACK_FOLDER_NAME, fileOriginalName);
 
   // 해당 백 경로에 파일이 없을 경우
-  const isMissingFile = !(fs.existsSync(filePath));
+  const isMissingFile = !fs.existsSync(filePath);
   if (isMissingFile) {
     //
     // blob 타입으로 전송
@@ -138,31 +181,26 @@ app.post("/downloadFile", (req, res) => {
     return;
   }
 
-  const fileName = encodeURIComponent(fileOriginalName);
-  res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
   res.sendFile(filePath);
-
-  // res.download(filePath, fileOriginalName);
-})
+  // res.download(filePath);
+});
 
 app.get("/deleteBackFiles", (req, res) => {
   //
-  // 삭제할 파일들 경로
-  const filePaths = ["reportFiles/문서1.docx"];
+  const fileNames = fs.readdirSync(path.join(__dirname, BACK_FOLDER_NAME));
 
-  filePaths.forEach((path) => {
+  fileNames.forEach((fileName) => {
     //
     try {
       //
-      fs.unlinkSync(path);
-
+      fs.unlinkSync(path.join(BACK_FOLDER_NAME, fileName));
     } catch (err) {
       //
       console.log(err);
     }
-  })
-  res.send("파일 삭제 완료!");
-})
+  });
+  res.send({ success: true, msg: "모든 파일 삭제 완료!" });
+});
 
 // ===========================================================================
 // =============================== 사용 안 함 =================================
@@ -176,7 +214,10 @@ app.post("/saveIpfsWithMulter", multer().array("files"), async (req, res) => {
   // }
 
   if (ipfs === undefined) {
-    res.send("ipfs 모듈 import 중이니 잠시 후 다시 시도해주세요.");
+    res.send({
+      success: false,
+      msg: "ipfs 모듈 import 중이니 잠시 후 다시 시도해주세요.",
+    });
     return;
   }
 
@@ -190,13 +231,19 @@ app.post("/saveIpfsWithMulter", multer().array("files"), async (req, res) => {
     await Promise.all(
       req.files.map(async (file) => {
         //
-        const ipfsReuslt = await ipfs.add({ path: decodeURIComponent(file.originalname), content: file.buffer })
+        const ipfsReuslt = await ipfs.add({
+          path: decodeURIComponent(file.originalname),
+          content: file.buffer,
+        });
         imgsData.push(ipfsReuslt);
       })
     );
   } catch (error) {
     //
-    res.send("ipfs daemon이 실행 중인지 확인해주세요.");
+    res.send({
+      success: false,
+      msg: "ipfs daemon이 실행 중인지 확인해주세요.",
+    });
     return;
   }
 
@@ -212,7 +259,7 @@ app.post("/saveIpfsWithMulter", multer().array("files"), async (req, res) => {
   // console.log(stringPath);
 
   console.log(imgsData);
-  res.send(imgsData);
+  res.send({ success: true, data: imgsData });
 });
 
 // =================================

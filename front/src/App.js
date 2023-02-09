@@ -2,6 +2,10 @@ import "./App.css";
 import axios from "axios";
 import { useState, useRef } from "react";
 
+const backAxios = axios.create({
+  baseURL: "http://localhost:8282",
+});
+
 const createFormData = (files) => {
   //
   const formData = new FormData();
@@ -9,7 +13,8 @@ const createFormData = (files) => {
   Array.from({ length: files.length }, (v, i) => i).forEach((i) => {
     //
     // 파일명이 한글일 경우에 깨지는 현상을 방지하고자 인코딩 하여 전송
-    const { type, size, lastModified, lastModifiedDate, webkitRelativePath } = files[i];
+    const { type, size, lastModified, lastModifiedDate, webkitRelativePath } =
+      files[i];
 
     const options = {
       type,
@@ -22,10 +27,10 @@ const createFormData = (files) => {
 
     const file = new File([files[i]], fileName, options);
     formData.append("files", file);
-  })
+  });
 
   return formData;
-}
+};
 
 const saveFilesFn = async (files) => {
   //
@@ -35,28 +40,23 @@ const saveFilesFn = async (files) => {
   }
 
   const formData = createFormData(files);
-  const saveFileResult = (await axios.post("http://localhost:8282/saveFiles", formData)).data;
-  alert(saveFileResult);
+  const result = (await backAxios.post("saveFiles", formData)).data;
+  alert(result.msg);
 
   // for (const iterator of formData.values()) {
   //   console.log(iterator);
   // }
 };
 
-const saveIpfsFn = async (setImgs, setDocs) => {
+const saveIpfsFn = async (setImgs, setButtons) => {
   //
-  const saveIpfsResult = (await axios.post("http://localhost:8282/saveIpfs")).data;
+  const result = (await backAxios.post("saveIpfs")).data;
 
-  if ((typeof saveIpfsResult) === "string") {
+  if (result.msg !== undefined) {
     //
-    alert(saveIpfsResult);
+    alert(result.msg);
     return;
   }
-  // 온전한 파일명인지 확인
-  console.log(saveIpfsResult.map((data) => data.path));
-
-  const imgs = new Array(0);
-  const docs = new Array(0);
 
   // 다양한 파일 타입별 처리 필요
   // 요구사항 => jpg, jpeg, gif, png, bmp, doc, docx, xlsx, xls, pdf, hwp 첨부 가능
@@ -72,88 +72,132 @@ const saveIpfsFn = async (setImgs, setDocs) => {
   //   "application/haansofthwp",
   // ];
 
+  const { fileOriginalNames, ipfsPaths, ipfsResult } = result.data;
+
   const imgExtensionNames = ["jpg", "jpeg", "gif", "png", "bmp"];
   const documentExtensionNames = ["doc", "docx", "xlsx", "xls", "pdf", "hwp"];
 
-  saveIpfsResult.forEach((data) => {
+  const imgs = new Array(0);
+  const buttons = new Array(0);
+
+  ipfsPaths.forEach((ipfsPath, index) => {
     //
     // cid 객체
-    const cid = data.cid["/"];
-    const fileOriginalName = data.path;
-    const extensionName = fileOriginalName.split(".")[fileOriginalName.split(".").length - 1];
+    const cid = ipfsResult[index].cid["/"];
 
-    const isImage = imgExtensionNames.some((extension) => extension === extensionName);
-    const isDocument = documentExtensionNames.some((extension) => extension === extensionName);
+    const fileOriginalName = fileOriginalNames[index];
+
+    const splitedFileName = fileOriginalName.split(".");
+    const extensionName = splitedFileName[splitedFileName.length - 1];
+
+    const isImage = imgExtensionNames.some(
+      (extension) => extension === extensionName
+    );
 
     if (isImage) {
       //
-      imgs.push({ cid, fileOriginalName, extensionName });
+      imgs.push({ fileOriginalName, ipfsPath, cid });
     }
 
-    else if (isDocument) {
-      //
-      docs.push({ cid, fileOriginalName, extensionName });
-    }
-  })
+    buttons.push({ fileOriginalName, ipfsPath, cid });
+  });
 
+  // 이미지 미리보기
   setImgs(imgs);
-  setDocs(docs);
+
+  // 파일 다운로드 가능한 버튼
+  setButtons(buttons);
 };
 
-const downloadFileFn = async (fileOriginalName) => {
+const downloadIpfsFn = async (fileOriginalName, ipfsPath, cid) => {
   //
-  const file = (await axios.post("http://localhost:8282/downloadFile", { fileOriginalName }, { responseType: "blob" })).data;
+  const result = (
+    await backAxios.post(
+      "downloadIpfs",
+      { fileOriginalName, cid },
+      { responseType: "blob" }
+    )
+  ).data;
 
-  if (file.size === 0) {
+  console.log(result);
+
+  const aTag = document.createElement("a");
+
+  // blob 객체로 생성하지 않으면 download 속성이 적용되지 않음
+  const blob = new Blob([result]);
+
+  aTag.href = window.URL.createObjectURL(blob);
+  aTag.download = fileOriginalName;
+  window.URL.revokeObjectURL(blob);
+
+  aTag.click();
+  aTag.remove();
+};
+
+const downloadBackFileFn = async (fileOriginalName) => {
+  //
+  const encodedFileName = encodeURIComponent(fileOriginalName);
+
+  const result = (
+    await backAxios.post(
+      "downloadBackFile",
+      { encodedFileName },
+      { responseType: "blob" }
+    )
+  ).data;
+
+  if (result.size === 0) {
     //
     alert("해당 백 경로에 파일이 없습니다.");
     return;
   }
-  
-  const blob = new Blob([file]);
-  const fileUrl = window.URL.createObjectURL(blob);
-  window.URL.revokeObjectURL(blob);
 
   const aTag = document.createElement("a");
+
+  const blob = new Blob([result]);
+
+  aTag.href = window.URL.createObjectURL(blob);
   aTag.download = fileOriginalName;
-  aTag.href = fileUrl;
+  window.URL.revokeObjectURL(blob);
+
   aTag.click();
   aTag.remove();
 };
 
 const deleteBackFilesFn = async () => {
   //
-  const resultMsg = (await axios.get("http://localhost:8282/deleteBackFiles")).data;
-  alert(resultMsg);
-}
+  const result = (await backAxios.get("deleteBackFiles")).data;
+  alert(result.msg);
+};
 
 function App() {
   //
   const file = useRef();
   const [imgs, setImgs] = useState();
-  const [docs, setDocs] = useState();
+  const [buttons, setButtons] = useState();
   //
   return (
     <div className="App">
       <input type="file" ref={file} multiple />
       <button onClick={() => saveFilesFn(file.current.files)}>saveFiles</button>
-      <button onClick={() => saveIpfsFn(setImgs, setDocs)}>saveIpfs</button>
+      <button onClick={() => saveIpfsFn(setImgs, setButtons)}>saveIpfs</button>
       <button onClick={deleteBackFilesFn}>deleteBackFiles</button>
       {/* ---------- */}
       {/* 이미지 파일 */}
-      {imgs && imgs.map((obj, index) => <img src={"http://127.0.0.1:9090/ipfs/" + obj.cid} key={index} alt="" />)}
       {imgs &&
-        imgs.map((obj, index) => (
-          <button onClick={() => downloadFileFn(obj.fileOriginalName)} key={index}>
-            {`.${obj.extensionName} 파일 다운로드`}
-          </button>
-        ))}
-      {/* -------- */}
-      {/* 문서 파일 */}
-      {docs &&
-        docs.map((obj, index) => (
-          <button onClick={() => downloadFileFn(obj.fileOriginalName)} key={index}>
-            {`.${obj.extensionName} 파일 다운로드`}
+        imgs.map((obj, index) => <img src={obj.ipfsPath} key={index} alt="" />)}
+      {/* ---------------- */}
+      {/* 파일 다운로드 버튼 */}
+      {buttons &&
+        buttons.map((obj, index) => (
+          <button
+            onClick={() =>
+              downloadIpfsFn(obj.fileOriginalName, obj.ipfsPath, obj.cid)
+            }
+            // onClick={() => downloadBackFileFn(obj.fileOriginalName)}
+            key={index}
+          >
+            {`${obj.fileOriginalName} 파일 다운로드`}
           </button>
         ))}
     </div>
