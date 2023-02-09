@@ -1,7 +1,7 @@
 const BACK_FOLDER_NAME = "multerFiles";
 const express = require("express");
 const multer = require("multer");
-const IPFS_IP_PATH = "127.0.0.1";
+const LOCALHOST = "127.0.0.1";
 const cors = require("cors");
 const path = require("path");
 const http = require("http");
@@ -49,7 +49,7 @@ const createIpfsClientFn = async () => {
   const ipfsClient = await createIpfsClientFn();
 
   ipfs = ipfsClient.create({
-    host: IPFS_IP_PATH,
+    host: LOCALHOST,
     protocol: "http",
     port: "5002",
   });
@@ -58,7 +58,7 @@ const createIpfsClientFn = async () => {
 })();
 
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000" }));
+app.use(cors({ origin: `http://${LOCALHOST}:3000` }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
@@ -117,7 +117,7 @@ app.post("/saveIpfs", async (req, res) => {
           // console.log(iterator.path === iterator.cid.toString());
 
           // 블록체인에 저장할 ipfs 경로
-          const cidPath = `http://${IPFS_IP_PATH}:9090/ipfs/${iterator.cid}`;
+          const cidPath = `http://${LOCALHOST}:9090/ipfs/${iterator.cid}`;
           ipfsPaths.push(cidPath);
         }
 
