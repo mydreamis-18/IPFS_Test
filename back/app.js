@@ -1,7 +1,11 @@
 const AWS_PATH =
   "http://ec2-13-125-242-193.ap-northeast-2.compute.amazonaws.com";
 const BACK_FILE_FOLDER_NAME = "multerFiles";
-const LOCALHOST = "13.125.242.193";
+
+// .jsipfs 폴더의 config 파일 주소 수정
+const AWS_PRIVATE_IP = "172.31.0.61";
+
+const AWS_PUBLIC_IP = "3.34.252.250";
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
@@ -54,7 +58,7 @@ const createIpfsClientFn = async () => {
 
   // daemon IP 주소와 동일해야 함
   ipfs = ipfsClient.create({
-    host: LOCALHOST,
+    host: AWS_PRIVATE_IP,
     protocol: "http",
     port: "5002",
   });
@@ -63,7 +67,7 @@ const createIpfsClientFn = async () => {
 })();
 
 app.use(express.json());
-app.use(cors({ origin: [`http://${LOCALHOST}:3000`, `${AWS_PATH}:3000`] }));
+app.use(cors({ origin: [`http://${AWS_PRIVATE_IP}:3000`, `${AWS_PATH}:3000`] }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
@@ -129,7 +133,7 @@ app.post("/saveIpfs", async (req, res) => {
           // console.log(iterator.path === iterator.cid.toString());
 
           // 블록체인에 저장할 ipfs 경로 (daemon IP 주소와 동일해야 함)
-          const cidPath = `http://${LOCALHOST}:9090/ipfs/${iterator.cid}`;
+          const cidPath = `http://${AWS_PUBLIC_IP}:9090/ipfs/${iterator.cid}`;
           ipfsPaths.push(cidPath);
         }
 
