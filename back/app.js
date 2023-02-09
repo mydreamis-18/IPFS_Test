@@ -1,4 +1,4 @@
-const BACK_FOLDER_NAME = "multerFiles";
+const BACK_FILE_FOLDER_NAME = "multerFiles";
 const express = require("express");
 const multer = require("multer");
 const LOCALHOST = "52.78.4.59";
@@ -67,12 +67,19 @@ let filePaths = new Array(0);
 
 let fileOriginalNames = new Array(0);
 
+// 파일 저장할 백 폴더 생성
+const isFolder = fs.existsSync(BACK_FILE_FOLDER_NAME);
+if (!isFolder) {
+  //
+  fs.mkdirSync(BACK_FILE_FOLDER_NAME);
+}
+
 app.post("/saveFiles", multer().array("files"), async (req, res) => {
   //
   req.files.map((file) => {
     //
     const fileName = decodeURIComponent(file.originalname);
-    const filePath = path.join(BACK_FOLDER_NAME, fileName);
+    const filePath = path.join(BACK_FILE_FOLDER_NAME, fileName);
 
     fs.writeFileSync(filePath, file.buffer);
 
@@ -161,7 +168,7 @@ app.post("/downloadIpfs", async (req, res) => {
   }
 
   // fs.writeFileSync(path.join("ipfsFiles", fileOriginalName), iwantbuffer);
-  
+
   res.send(iwantbuffer);
 });
 
@@ -170,7 +177,7 @@ app.post("/downloadBackFile", (req, res) => {
   const { encodedFileName: fileName } = req.body;
 
   const fileOriginalName = decodeURIComponent(fileName);
-  const filePath = path.join(__dirname, BACK_FOLDER_NAME, fileOriginalName);
+  const filePath = path.join(__dirname, BACK_FILE_FOLDER_NAME, fileOriginalName);
 
   // 해당 백 경로에 파일이 없을 경우
   const isMissingFile = !fs.existsSync(filePath);
@@ -187,13 +194,13 @@ app.post("/downloadBackFile", (req, res) => {
 
 app.get("/deleteBackFiles", (req, res) => {
   //
-  const fileNames = fs.readdirSync(path.join(__dirname, BACK_FOLDER_NAME));
+  const fileNames = fs.readdirSync(path.join(__dirname, BACK_FILE_FOLDER_NAME));
 
   fileNames.forEach((fileName) => {
     //
     try {
       //
-      fs.unlinkSync(path.join(BACK_FOLDER_NAME, fileName));
+      fs.unlinkSync(path.join(BACK_FILE_FOLDER_NAME, fileName));
     } catch (err) {
       //
       console.log(err);
