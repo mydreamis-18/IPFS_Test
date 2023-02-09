@@ -3,7 +3,9 @@ import axios from "axios";
 import { useState, useRef } from "react";
 
 const backAxios = axios.create({
-  baseURL: "http://52.78.4.59:8282",
+  //
+  // 요청할 백 서버 주소 (여기서의 로컬 호스트는 홈페이지 이용자의 PC IP 주소)
+  baseURL: "http://13.125.242.193:8282",
 });
 
 const createFormData = (files) => {
