@@ -1,3 +1,5 @@
+const AWS_PATH =
+  "http://ec2-13-125-242-193.ap-northeast-2.compute.amazonaws.com";
 const BACK_FILE_FOLDER_NAME = "multerFiles";
 const LOCALHOST = "13.125.242.193";
 const express = require("express");
@@ -58,7 +60,7 @@ const createIpfsClientFn = async () => {
 })();
 
 app.use(express.json());
-app.use(cors({ origin: `http://${LOCALHOST}:3000` }));
+app.use(cors({ origin: [`http://${LOCALHOST}:3000`, `${AWS_PATH}:3000`] }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
@@ -177,7 +179,11 @@ app.post("/downloadBackFile", (req, res) => {
   const { encodedFileName: fileName } = req.body;
 
   const fileOriginalName = decodeURIComponent(fileName);
-  const filePath = path.join(__dirname, BACK_FILE_FOLDER_NAME, fileOriginalName);
+  const filePath = path.join(
+    __dirname,
+    BACK_FILE_FOLDER_NAME,
+    fileOriginalName
+  );
 
   // 해당 백 경로에 파일이 없을 경우
   const isMissingFile = !fs.existsSync(filePath);
