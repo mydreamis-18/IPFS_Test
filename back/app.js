@@ -48,8 +48,11 @@ const createIpfsClientFn = async () => {
 
 (async () => {
   //
+  if (ipfs !== undefined) return;
+
   const ipfsClient = await createIpfsClientFn();
 
+  // daemon IP 주소와 동일해야 함
   ipfs = ipfsClient.create({
     host: LOCALHOST,
     protocol: "http",
@@ -125,7 +128,7 @@ app.post("/saveIpfs", async (req, res) => {
           // true
           // console.log(iterator.path === iterator.cid.toString());
 
-          // 블록체인에 저장할 ipfs 경로
+          // 블록체인에 저장할 ipfs 경로 (daemon IP 주소와 동일해야 함)
           const cidPath = `http://${LOCALHOST}:9090/ipfs/${iterator.cid}`;
           ipfsPaths.push(cidPath);
         }
