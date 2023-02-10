@@ -5,7 +5,7 @@ const BACK_FILE_FOLDER_NAME = "multerFiles";
 // .jsipfs 폴더의 config 파일 주소 수정
 const AWS_PRIVATE_IP = "172.31.0.61";
 
-const AWS_PUBLIC_IP = "3.34.252.250";
+const AWS_PUBLIC_IP = "13.125.135.103";
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
