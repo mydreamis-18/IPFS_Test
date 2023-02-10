@@ -1,11 +1,11 @@
 const AWS_PATH =
-  "http://ec2-13-125-135-103.ap-northeast-2.compute.amazonaws.com";
+  "http://ec2-43-201-35-130.ap-northeast-2.compute.amazonaws.com";
 const BACK_FILE_FOLDER_NAME = "multerFiles";
 
 // .jsipfs 폴더의 config 파일 주소 수정
 const AWS_PRIVATE_IP = "172.31.0.61";
 
-const AWS_PUBLIC_IP = "13.125.135.103";
+const AWS_PUBLIC_IP = "43.201.35.130";
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
