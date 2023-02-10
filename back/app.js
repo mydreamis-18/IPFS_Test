@@ -14,22 +14,23 @@
 // Address.RPC : 127.0.0.1 => AWS_PRIVATE_IP 변경
 // esc => :wq! => 저장 후 종료
 
-// (5) jsipfs daemon => 실행 시 변경된 IP 주소 확인
+// (5) rm -rf repo.lock => 파일 삭제
 
-// (6) AWS 인스턴스 보안 그룹의 인바운드 규칙 추가
+// (6) jsipfs daemon => 실행 시 변경된 IP 주소 확인
+
+// (7) AWS 인스턴스 보안 그룹의 인바운드 규칙 추가
 // 프론트 포트 추가 (3000) => ${AWS_PUBLIC_IP:프론트 포트}로 페이지 접속 가능
 // 백엔드 포트 추가 (8282) => AXIOS 통신 가능
 // 9090 포트 추가 => IPFS 파일 접근 주소 접속 가능
 
-// (7) AWS_PUBLIC_IP => 프론트 AXIOS 요청 주소, 백엔드 CORS ORIGIN 주소, IPFS 파일 접근 주소로 사용
-// (8) AWS_PRIVATE_IP => JSIPFS DAEMON 노드의 IP 주소, IPFS-HTTP-CLIENT 연결 주소로 사용
-
+// (8) AWS_PUBLIC_IP => 프론트 AXIOS 요청 주소, 백엔드 CORS ORIGIN 주소, IPFS 파일 접근 주소로 사용
+// (9) AWS_PRIVATE_IP => JSIPFS DAEMON 노드의 IP 주소, IPFS-HTTP-CLIENT 연결 주소로 사용
 
 
 const AWS_PATH =
   "http://ec2-43-201-35-130.ap-northeast-2.compute.amazonaws.com";
-  const AWS_PRIVATE_IP = "172.31.0.61";
-  const AWS_PUBLIC_IP = "43.201.35.130";
+const AWS_PRIVATE_IP = "172.31.0.61";
+const AWS_PUBLIC_IP = "43.201.35.130";
 
 const BACK_FILE_FOLDER_NAME = "multerFiles";
 const express = require("express");
