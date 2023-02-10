@@ -1,5 +1,5 @@
 const AWS_PATH =
-  "http://ec2-13-125-242-193.ap-northeast-2.compute.amazonaws.com";
+  "http://ec2-13-125-135-103.ap-northeast-2.compute.amazonaws.com";
 const BACK_FILE_FOLDER_NAME = "multerFiles";
 
 // .jsipfs 폴더의 config 파일 주소 수정
@@ -67,7 +67,7 @@ const createIpfsClientFn = async () => {
 })();
 
 app.use(express.json());
-app.use(cors({ origin: [`http://${AWS_PRIVATE_IP}:3000`, `${AWS_PATH}:3000`] }));
+app.use(cors({ origin: [`http://${AWS_PUBLIC_IP}:3000`, `${AWS_PATH}:3000`] }));
 
 app.listen(PORT, () => console.log("back server start..."));
 
