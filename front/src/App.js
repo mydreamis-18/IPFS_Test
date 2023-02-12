@@ -5,7 +5,8 @@ import { useState, useRef } from "react";
 const backAxios = axios.create({
   //
   // 요청할 백 서버 주소 (여기서의 로컬 호스트는 홈페이지 이용자의 PC IP 주소)
-  baseURL: "http://43.201.35.130:8282",
+  // baseURL: "http://43.201.35.130:8282",
+  baseURL: "http://localhost:8282",
 });
 
 const createFormData = (files) => {
@@ -111,6 +112,12 @@ const saveIpfsFn = async (setImgs, setButtons) => {
   setButtons(buttons);
 };
 
+const sendBufferTestFn = async () => {
+  //
+  const result = await backAxios.post("sendBufferTest");
+  console.log(result.data);
+}
+
 const downloadIpfsFn = async (fileOriginalName, ipfsPath, cid) => {
   //
   const result = (
@@ -184,6 +191,7 @@ function App() {
       <button onClick={() => saveFilesFn(file.current.files)}>saveFiles</button>
       <button onClick={() => saveIpfsFn(setImgs, setButtons)}>saveIpfs</button>
       <button onClick={deleteBackFilesFn}>deleteBackFiles</button>
+      <button onClick={sendBufferTestFn}>sendBufferTest</button>
       {/* ---------- */}
       {/* 이미지 파일 */}
       {imgs &&

@@ -35,12 +35,14 @@ const AWS_PUBLIC_IP = "43.201.35.130";
 const BACK_FILE_FOLDER_NAME = "multerFiles";
 const express = require("express");
 const multer = require("multer");
+const axios = require("axios");
 const cors = require("cors");
 const path = require("path");
 const http = require("http");
+const BACK_MAIN_PORT = 8282;
+const BACK_SUB_PORT = 8888;
 const fs = require("fs");
 const app = express();
-const PORT = 8282;
 
 // Create a factory to spawn two test disposable controllers, get access to an IPFS api
 // print node ids and clean all the controllers from the factory.
@@ -93,10 +95,14 @@ const createIpfsClientFn = async () => {
   globSource = ipfsClient.globSource;
 })();
 
-app.use(express.json());
-app.use(cors({ origin: [`http://${AWS_PUBLIC_IP}:3000`, `${AWS_PATH}:3000`] }));
+// buffer 전송 크기 제한 (PayloadTooLargeError : reqest entity too large)
+app.use(express.json({ limit: "50mb" }));
 
-app.listen(PORT, () => console.log("back server start..."));
+// app.use(cors({ origin: [`http://${AWS_PUBLIC_IP}:3000`, `${AWS_PATH}:3000`] }));
+app.use(cors({ origin: [`http://localhost:3000`] }));
+
+app.listen(BACK_MAIN_PORT, () => console.log("back main server start..."));
+app.listen(BACK_SUB_PORT, () => console.log("back sub server start..."));
 
 // ipfs에 저장할 파일들의 백 경로 (테스트용 전역 변수)
 let filePaths = new Array(0);
@@ -191,6 +197,32 @@ app.post("/saveIpfs", async (req, res) => {
     data: { fileOriginalNames, ipfsPaths, ipfsResult },
   });
 });
+
+app.post("/sendBufferTest", async (req, res) => {
+  //
+  const buffers = new Array(0);
+
+  const fileNames = fs.readdirSync(BACK_FILE_FOLDER_NAME);
+  console.log(fileNames);
+
+  fileNames.map((fileName) => {
+    //
+    const buffer = fs.readFileSync(path.join(BACK_FILE_FOLDER_NAME, fileName));
+    buffers.push(buffer);
+  })
+
+  const result = await axios.post("http://localhost:8888/receiveBuffer", { buffers });
+  res.send(result.data);
+})
+
+app.post("/receiveBuffer", async (req, res) => {
+  //
+  const { buffers } = req.body;
+
+  buffers.map((buffer) => console.log(buffer.data));
+
+  res.send({ success: true });
+})
 
 app.post("/downloadIpfs", async (req, res) => {
   //
