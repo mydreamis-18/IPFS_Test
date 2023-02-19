@@ -51,7 +51,7 @@ const app = express();
 // const test = require("ipfs-http-client")
 // Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: No "exports" main defined in C:\Users\tkekd\OneDrive\바탕 화면\ipfs_Test\back\node_modules\ipfs-http-client\package.json
 
-// ipfs-http-client 모듈의 버전에 따라 Common JS 방식의 import도 가능하다.
+// ipfs-http-client 모듈의 버전에 따라 Common JS 방식의 import도 가능하지만 이왕이면 최신 버전을 사용하고 싶었음
 // 해당 모듈의 package.json 파일에서 모듈 방식에 대한 내용 확인 가능 => "type": "module"
 
 // 비동기 방식인 ES 모듈을 커먼 JS로 가져오기
@@ -138,38 +138,40 @@ app.post("/saveIpfs", async (req, res) => {
   const fileBuffers = new Array(0);
 
   try {
-  //
-  // 프로젝트 내에서 데이터를 해시하는 과정에서 배열의 순서 또한 중요하기 때문에 비동기적으로 처리되어 배열의 순서가 달라리면 안 됨
-  // await Promise.all(
-  //   filePaths.map(async (filePath) => {
-
-  for (const filePath of filePaths) {
     //
-    // 두 번재 인자인 파일 이름에 [] 기호가 포함될 경우 오류가 발생하기 때문에 첫 번째 인자에 파일 이름까지 기재
-    for await (const iterator of ipfs.addAll(
-      globSource(filePath, "**/*")
-    )) {
+    // 프로젝트 내에서 데이터를 해시하는 과정에서 배열의 순서 또한 중요하기 때문에
+    // 비동기적으로 처리되어 배열의 순서가 달라지면 안 됨
+    // await Promise.all(
+    //   filePaths.map(async (filePath) => {
+
+    for (const filePath of filePaths) {
       //
-      // { path, cid, size, mode }
-      ipfsResult.push(iterator);
+      // 파일 패턴에 대한 두 번재 인자 값에 [] 기호가 포함된 파일명이 담길 경우 파일을 찾지 못하기 때문에
+      // 첫 번째 인자 값에 파일명이 포함된 해당 파일까지의 디렉토리 주소를 기재함
+      for await (const iterator of ipfs.addAll(
+        globSource(filePath, "**/*")
+      )) {
+        //
+        // { path, cid, size, mode }
+        ipfsResult.push(iterator);
 
-      // ["code", "version", "multihash", "bytes", "/"];
-      // console.log(Object.keys(iterator.cid));
+        // ["code", "version", "multihash", "bytes", "/"];
+        // console.log(Object.keys(iterator.cid));
 
-      // true
-      // console.log(iterator.path === iterator.cid.toString());
+        // true
+        // console.log(iterator.path === iterator.cid.toString());
 
-      // 블록체인에 저장할 ipfs 경로 (daemon IP 주소와 동일해야 함)
-      const cidPath = `http://${LOCALHOST2 || AWS_PUBLIC_IP}:9090/ipfs/${iterator.cid}`;
-      ipfsPaths.push(cidPath);
+        // 블록체인에 저장할 ipfs 경로 (daemon IP 주소와 동일해야 함)
+        const cidPath = `http://${LOCALHOST2 || AWS_PUBLIC_IP}:9090/ipfs/${iterator.cid}`;
+        ipfsPaths.push(cidPath);
+      }
+
+      // 백에 저장된 파일의 버퍼 값
+      const buffer = fs.readFileSync(filePath);
+      fileBuffers.push(buffer);
     }
-
-    // 백에 저장된 파일의 버퍼 값
-    const buffer = fs.readFileSync(filePath);
-    fileBuffers.push(buffer);
-  }
-  // })
-  // );
+    // })
+    // );
   } catch (error) {
     //
     res.send({
@@ -193,7 +195,7 @@ app.post("/saveIpfs", async (req, res) => {
   });
 });
 
-// 프로젝트 내에서 백엔드 서버에서 패브릭 네트워크 서버로 버퍼 값을 전송하기 했기 때문에 진행하는 테스트
+// 프로젝트 내에서 백엔드 서버에서 패브릭 네트워크 서버로 버퍼 값을 전송해야 했기 때문에 버퍼 사이즈에 대한 통신 가능 여부 테스트
 app.post("/sendBufferTest", async (req, res) => {
   //
   const buffers = new Array(0);

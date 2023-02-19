@@ -202,10 +202,10 @@ function App() {
       {buttons &&
         buttons.map((obj, index) => (
           <button
-            // onClick={() =>
-            //   downloadIpfsFn(obj.fileOriginalName, obj.ipfsPath, obj.cid)
-            // }
-            onClick={() => downloadBackFileFn(obj.fileOriginalName)}
+            onClick={() =>
+              downloadIpfsFn(obj.fileOriginalName, obj.ipfsPath, obj.cid)
+            }
+            // onClick={() => downloadBackFileFn(obj.fileOriginalName)}
             key={index}
           >
             {`${obj.fileOriginalName} 파일 다운로드`}
