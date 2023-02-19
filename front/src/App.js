@@ -30,6 +30,7 @@ const createFormData = (files) => {
 
     const file = new File([files[i]], fileName, options);
     formData.append("files", file);
+    // formData.append("files", "test");
   });
 
   return formData;
@@ -114,8 +115,8 @@ const saveIpfsFn = async (setImgs, setButtons) => {
 
 const sendBufferTestFn = async () => {
   //
-  const result = await backAxios.post("sendBufferTest");
-  console.log(result.data);
+  const result = (await backAxios.post("sendBufferTest")).data;
+  console.log(result);
 }
 
 const downloadIpfsFn = async (fileOriginalName, ipfsPath, cid) => {
@@ -201,10 +202,10 @@ function App() {
       {buttons &&
         buttons.map((obj, index) => (
           <button
-            onClick={() =>
-              downloadIpfsFn(obj.fileOriginalName, obj.ipfsPath, obj.cid)
-            }
-            // onClick={() => downloadBackFileFn(obj.fileOriginalName)}
+            // onClick={() =>
+            //   downloadIpfsFn(obj.fileOriginalName, obj.ipfsPath, obj.cid)
+            // }
+            onClick={() => downloadBackFileFn(obj.fileOriginalName)}
             key={index}
           >
             {`${obj.fileOriginalName} 파일 다운로드`}
