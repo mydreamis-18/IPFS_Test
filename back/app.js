@@ -228,6 +228,10 @@ app.post("/downloadIpfs", async (req, res) => {
 
   const iwantbuffers = new Array(0);
 
+  // for await를 사용하지 않으면 파일에 접근할 수 없는 데이터 형태인 듯
+  // Object [AsyncGenerator] {}
+  // console.log(await ipfs.cat(cid));
+
   // 파일이 다양한 노드에 저장되는지 배열에 담지 않으면 이미지 파일의 일부분만 온전할 수 있음
   for await (const chunk of ipfs.cat(cid)) {
     console.info(chunk);
